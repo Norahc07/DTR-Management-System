@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-600;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print: only the .print-area is printed; app chrome and controls are hidden.
+   --------------------------------------------------------------------------- */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .no-print,
+  nav,
+  header.app-header,
+  aside {
+    display: none !important;
+  }
+  .print-area {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .print-table tr {
+    break-inside: avoid;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .dtr-sheet {
+    margin: 0 !important;
+  }
+}
+
+.print-table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Civil Service Form No. 48 — two forms per portrait sheet.
+   --------------------------------------------------------------------------- */
+.dtr-sheet {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  column-gap: 8mm;
+  padding: 5mm 6mm;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+@media screen {
+  .dtr-sheet {
+    margin: 0 auto;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  }
+}
+.cs48 {
+  font-size: 8pt;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+:where(.cs48) p,
+:where(.cs48) h2 {
+  margin: 0;
+}
+.cs48-form-no {
+  font-style: italic;
+}
+.cs48-title {
+  margin-top: 8mm;
+  text-align: center;
+  font-size: 9.5pt;
+  font-weight: 700;
+}
+.cs48-center {
+  text-align: center;
+}
+.cs48-italic {
+  font-style: italic;
+}
+.cs48-name {
+  margin-top: 6mm;
+  border-bottom: 0.75pt solid #000;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+.cs48-meta {
+  display: grid;
+  grid-template-columns: 31% 25% 44%;
+  grid-auto-rows: 4.6mm;
+  align-items: end;
+  margin-top: 6mm;
+}
+.cs48-meta-label {
+  padding-right: 1.5mm;
+  text-align: right;
+  font-style: italic;
+}
+.cs48-meta-value {
+  border-bottom: 0.75pt solid #000;
+  text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cs48-official {
+  grid-row: 2 / span 2;
+  align-self: center;
+  padding: 0 1mm;
+  text-align: center;
+  font-size: 6.5pt;
+  font-style: italic;
+  line-height: 1.35;
+}
+.cs48-table {
+  width: 100%;
+  margin-top: 7mm;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.cs48-table th,
+.cs48-table td {
+  height: 4.6mm;
+  padding: 0 0.5mm;
+  border: 0.75pt solid #000;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.cs48-table th {
+  height: 5.8mm;
+  background: #d9d9d9;
+  font-size: 7pt;
+  font-weight: 700;
+  line-height: 1.05;
+}
+.cs48-table th.cs48-plain,
+.cs48-table tr.cs48-plain th {
+  background: #fff;
+}
+.cs48-day,
+.cs48-label {
+  font-weight: 700;
+}
+.cs48-alert {
+  color: #e00000;
+}
+.cs48-table .cs48-total {
+  padding-right: 1mm;
+  text-align: right;
+}
+.cs48-after-total td {
+  border-top: 0;
+}
+.cs48-cert {
+  margin-top: 7mm;
+  padding: 0 1mm;
+  text-align: center;
+  font-style: italic;
+}
+.cs48-sign {
+  margin-top: 12mm;
+  border-bottom: 0.75pt solid #000;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+.cs48-status {
+  margin-top: 1mm;
+  text-align: right;
+  font-size: 5.5pt;
+  color: #555;
+}

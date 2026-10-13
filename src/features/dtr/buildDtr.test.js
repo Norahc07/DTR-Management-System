@@ -1,0 +1,64 @@
+import { describe, it, expect } from 'vitest';
+import { buildMonthlyDtr, fillMissingOuts, resolveTemplate, slotPunches } from './buildDtr';
+
+describe('slotPunches', () => {
+  it('fills chronologically', () => {
+    expect(slotPunches([480, 1020], 'chronological').slots).toEqual([480, 1020, null, null]);
+  });
+
+  it('splits at break: two punches become arrival and departure', () => {
+    expect(slotPunches([480, 1020], 'split_at_break', 750).slots).toEqual([480, null, null, 1020]);
+    expect(slotPunches([480, 720, 780, 1020], 'split_at_break', 750).slots).toEqual([480, 720, 780, 1020]);
+    // A lone afternoon punch near the end of the day is the departure; near lunch it is the return.
+    expect(slotPunches([480, 720, 1020], 'split_at_break', 750).slots).toEqual([480, 720, null, 1020]);
+    expect(slotPunches([478, 1020], 'split_at_break', 750, 930).slots).toEqual([478, null, null, 1020]);
+    expect(slotPunches([480, 766, 1020], 'split_at_break', 750, 930).slots).toEqual([480, null, 766, 1020]);
+    expect(slotPunches([480, 720, 766], 'split_at_break', 750, 930).slots).toEqual([480, 720, 766, null]);
+    expect(slotPunches([780, 1020], 'split_at_break', 750).slots).toEqual([null, null, 780, 1020]);
+  });
+
+  it('places four punches as AM in/out, PM in/out even when lunch-out is after the split', () => {
+    // 07:56, 12:02, 12:46, 17:00 with a 12:00 split
+    expect(slotPunches([476, 722, 766, 1020], 'split_at_break', 720)).toEqual({ slots: [476, 722, 766, 1020], extra: [] });
+  });
+
+  it('reports extras rather than dropping them', () => {
+    expect(slotPunches([480, 500, 520, 800, 900, 1000], 'chronological').extra).toEqual([900, 1000]);
+  });
+});
+
+describe('fillMissingOuts', () => {
+  const snap = { isWorkday: true, start: 420, end: 1080, breakStart: 720, breakEnd: 780 };
+  it('prints 12:00 for a missing morning OUT and 18:00 for a missing afternoon OUT', () => {
+    expect(fillMissingOuts([425, null, 790, null], snap)).toEqual([425, 720, 790, 1080]);
+    expect(fillMissingOuts([425, null, null, 1080], snap)).toEqual([425, 720, null, 1080]);
+  });
+  it('leaves recorded times, days without an IN, and rest days alone', () => {
+    expect(fillMissingOuts([425, 722, 778, 1085], snap)).toEqual([425, 722, 778, 1085]);
+    expect(fillMissingOuts([null, null, null, null], snap)).toEqual([null, null, null, null]);
+    expect(fillMissingOuts([425, null, null, null], { isWorkday: false })).toEqual([425, null, null, null]);
+  });
+});
+
+describe('buildMonthlyDtr', () => {
+  const template = resolveTemplate({ timeFormat: '24h' });
+
+  it('includes every calendar date and totals only computed values', () => {
+    const summaries = [
+      { work_date: '2026-09-01', status: 'complete', punches: [{ minutes: 480, role: 'in' }, { minutes: 1020, role: 'out' }], worked_minutes: 480, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [] },
+      { work_date: '2026-09-02', status: 'missing_punch', punches: [{ minutes: 490, role: 'unpaired' }, { minutes: 491, role: 'duplicate' }], worked_minutes: 0, late_minutes: 10, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: ['MISSING_PUNCH'] },
+      { work_date: '2026-09-06', status: 'rest_day', punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [] },
+    ];
+    const dtr = buildMonthlyDtr({ year: 2026, month: 9, summaries, template });
+    expect(dtr.rows).toHaveLength(30);
+    expect(dtr.rows[0].slots).toEqual(['08:00', '', '', '17:00']);
+    expect(dtr.rows[1].slots[0]).toBe('08:10');
+    expect(dtr.rows[1].remarks).toContain('Missing Punch');
+    expect(dtr.rows[5].statusLabel).toBe('Rest Day');
+    expect(dtr.rows[10].status).toBe('not_computed');
+    expect(dtr.totals).toMatchObject({ worked: 480, late: 10, lateCount: 1 });
+    expect(dtr.unresolved).toBe(1);
+    expect(dtr.notComputed).toBe(27);
+    expect(dtr.policyMissing).toBe(false);
+  });
+});
