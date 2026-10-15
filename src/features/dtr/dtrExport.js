@@ -1,6 +1,6 @@
-import { DAY_REMARKS, periodDays } from './form48';
+import { DAY_REMARKS, HALF_DAY_REMARK, periodDays } from './form48';
 
-const REMARK_LABEL = Object.fromEntries(DAY_REMARKS.map(([v, l]) => [v, l]));
+const REMARK_LABEL = Object.fromEntries([...DAY_REMARKS, HALF_DAY_REMARK].map(([v, l]) => [v, l]));
 
 /** One spreadsheet row per staff member per day of the period, with the four DTR times as printed. */
 export function dtrExportRows(docs, { year, month, period }) {

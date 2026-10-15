@@ -51,6 +51,9 @@ export function slotPunches(minutesList, mode = 'chronological', splitMinute = 7
   }
   const morning = sorted.filter((m) => m < splitMinute);
   const afternoon = sorted.filter((m) => m >= splitMinute);
+  // After a morning IN, a punch from the split up to 14 minutes later is the
+  // lunch-out (morning OUT), not an afternoon arrival.
+  if (morning.length === 1 && afternoon.length && afternoon[0] < splitMinute + 15) morning.push(afternoon.shift());
   morning.forEach((m, i) => (i < 2 ? (slots[i] = m) : extra.push(m)));
   if (afternoon.length === 1) {
     slots[afternoon[0] >= pmOutFrom ? 3 : 2] = afternoon[0];

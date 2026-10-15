@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMonthlyDtr, fillMissingOuts, resolveTemplate, slotPunches } from './buildDtr';
+import { emptyHalf, remarkFits } from './form48';
 
 describe('slotPunches', () => {
   it('fills chronologically', () => {
@@ -15,6 +16,12 @@ describe('slotPunches', () => {
     expect(slotPunches([480, 766, 1020], 'split_at_break', 750, 930).slots).toEqual([480, null, 766, 1020]);
     expect(slotPunches([480, 720, 766], 'split_at_break', 750, 930).slots).toEqual([480, 720, 766, null]);
     expect(slotPunches([780, 1020], 'split_at_break', 750).slots).toEqual([null, null, 780, 1020]);
+  });
+
+  it('reads a punch just after the split as the morning OUT when the morning has only an IN', () => {
+    expect(slotPunches([465, 720], 'split_at_break', 720).slots).toEqual([465, 720, null, null]);
+    expect(slotPunches([465, 722, 1080], 'split_at_break', 720).slots).toEqual([465, 722, null, 1080]);
+    expect(slotPunches([740, 1080], 'split_at_break', 720).slots).toEqual([null, null, 740, 1080]);
   });
 
   it('places four punches as AM in/out, PM in/out even when lunch-out is after the split', () => {
@@ -60,5 +67,21 @@ describe('buildMonthlyDtr', () => {
     expect(dtr.unresolved).toBe(1);
     expect(dtr.notComputed).toBe(27);
     expect(dtr.policyMissing).toBe(false);
+  });
+});
+
+describe('half-day remark rules', () => {
+  it('finds the empty half only when the other half has times', () => {
+    expect(emptyHalf(['07:45', '12:00', '', ''])).toBe('pm');
+    expect(emptyHalf(['', '', '13:00', '18:00'])).toBe('am');
+    expect(emptyHalf(['07:45', '', '', '18:00'])).toBeNull();
+    expect(emptyHalf(['', '', '', ''])).toBeNull();
+  });
+  it('keeps full-day remarks only on days without times and Half day only with one empty half', () => {
+    expect(remarkFits('sl', ['', '', '', ''])).toBe(true);
+    expect(remarkFits('sl', ['07:45', '', '', ''])).toBe(false);
+    expect(remarkFits('half_day', ['07:45', '12:00', '', ''])).toBe(true);
+    expect(remarkFits('half_day', ['', '', '', ''])).toBe(false);
+    expect(remarkFits('', ['07:45', '', '', ''])).toBe(true);
   });
 });

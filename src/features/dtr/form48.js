@@ -63,7 +63,25 @@ export const DAY_REMARKS = [
   ['seminar', 'Seminar', 'SEMINAR'],
   ['holiday', 'Holiday', 'HOLIDAY'],
 ];
+/** For a day with times in only one half; the empty half's IN/OUT cells print merged. */
+export const HALF_DAY_REMARK = ['half_day', 'Half day', 'HALF DAY'];
 const REMARK_PRINT = Object.fromEntries(DAY_REMARKS.map(([v, , p]) => [v, p]));
+
+/** 'am' or 'pm' when only that half of the day is empty (the other half has times), else null. */
+export function emptyHalf(times) {
+  const am = Boolean(times[0] || times[1]);
+  const pm = Boolean(times[2] || times[3]);
+  if (am && !pm) return 'pm';
+  if (pm && !am) return 'am';
+  return null;
+}
+
+/** Whether a remark can stay with these times: full-day remarks need no times, Half day needs one empty half. */
+export function remarkFits(remark, times) {
+  if (!remark) return true;
+  if (remark === HALF_DAY_REMARK[0]) return emptyHalf(times) !== null;
+  return !times.some(Boolean);
+}
 const BLANK_STATUSES = new Set(['not_computed', 'no_data']);
 
 /** Readiness and totals for the days of one half-month period. */
@@ -116,7 +134,8 @@ export function buildForm48({ dtr, year, month, period, showUndertime = true, fo
     if (!hasTimes) return { day, kind: 'blank', remark };
     const undertime = countUndertime ? (r.late || 0) + (r.undertime || 0) : 0;
     totalUndertime += undertime;
-    return { day, kind: 'times', slots: r.printSlots ?? r.slots, undertime };
+    const halfDay = r.remark === HALF_DAY_REMARK[0] ? emptyHalf(r.slots) : null;
+    return { day, kind: 'times', slots: r.printSlots ?? r.slots, undertime, ...(halfDay && { halfDay, halfDayText: HALF_DAY_REMARK[2] }) };
   });
   return { rows, totalUndertime };
 }
