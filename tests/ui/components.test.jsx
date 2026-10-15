@@ -81,6 +81,23 @@ describe('DTR print document (CS Form No. 48)', () => {
     expect(cellTexts(rows[14])).toEqual(['15', '', '', '', '', '', '']);
   });
 
+  it('no-undertime staff: Half day prints in the merged Undertime cell, morning or afternoon', () => {
+    const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
+    renderDtr({
+      emp: { ...employee, dtr_format: 'no_undertime' },
+      rows: [
+        ...summaries,
+        day('10', { status: 'complete', punches: [{ minutes: 465, role: 'in' }, { minutes: 720, role: 'out' }], undertime_minutes: 300 }),
+        day('11', { status: 'complete', punches: [{ minutes: 780, role: 'in' }, { minutes: 1080, role: 'out' }] }),
+      ],
+      remarks: ['10', '11'].map((d) => ({ work_date: `2026-09-${d}`, remark: 'half_day' })),
+    });
+    const rows = bodyRows();
+    expect(cellTexts(rows[9])).toEqual(['10', '07:45', '12:00', '', '', 'HALF DAY']);
+    expect(within(rows[9]).getByText('HALF DAY')).toHaveAttribute('colspan', '2');
+    expect(cellTexts(rows[10])).toEqual(['11', '', '', '13:00', '18:00', 'HALF DAY']);
+  });
+
   it('no-undertime staff: rest days show the weekday, remarks fill the merged Undertime cell, nothing is counted', () => {
     const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
     renderDtr({

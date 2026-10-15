@@ -135,6 +135,7 @@ export function buildForm48({ dtr, year, month, period, showUndertime = true, fo
     const undertime = countUndertime ? (r.late || 0) + (r.undertime || 0) : 0;
     totalUndertime += undertime;
     const halfDay = r.remark === HALF_DAY_REMARK[0] ? emptyHalf(r.slots) : null;
+    if (halfDay && noUndertime) return { day, kind: 'times', slots: r.printSlots ?? r.slots, undertime, remark: HALF_DAY_REMARK[2] };
     return { day, kind: 'times', slots: r.printSlots ?? r.slots, undertime, ...(halfDay && { halfDay, halfDayText: HALF_DAY_REMARK[2] }) };
   });
   return { rows, totalUndertime };
