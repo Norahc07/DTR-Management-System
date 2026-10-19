@@ -58,7 +58,7 @@ export function DtrDocument({ org, employee, year, month, period, dtr, template,
               <tr key={r.day}>
                 <td className="cs48-day">{r.day}</td>
                 {r.kind === 'label' ? (
-                  <td colSpan={4} className={`cs48-label${r.alert ? ' cs48-alert' : ''}`}>{r.text}</td>
+                  <td colSpan={4} className={`cs48-label${r.alert || r.text === 'ABSENT' ? ' cs48-alert' : ''}`}>{r.text}</td>
                 ) : r.halfDay === 'am' ? (
                   <>
                     <td colSpan={2} className="cs48-label">{r.halfDayText}</td>
@@ -75,7 +75,7 @@ export function DtrDocument({ org, employee, year, month, period, dtr, template,
                   [0, 1, 2, 3].map((i) => <td key={i}>{r.kind === 'times' ? r.slots[i] : ''}</td>)
                 )}
                 {r.remark ? (
-                  <td colSpan={2} className="cs48-label">{r.remark}</td>
+                  <td colSpan={2} className={`cs48-label${r.remark === 'ABSENT' ? ' cs48-alert' : ''}`}>{r.remark}</td>
                 ) : (
                   <>
                     <td>{ut.hours}</td>

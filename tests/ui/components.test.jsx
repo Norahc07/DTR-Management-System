@@ -180,6 +180,7 @@ describe('DTR print document (CS Form No. 48)', () => {
     const rows = bodyRows();
     expect(cellTexts(rows[2])).toEqual(['3', 'ABSENT', '', '']);
     expect(within(rows[2]).getByText('ABSENT')).toHaveAttribute('colspan', '4');
+    expect(within(rows[2]).getByText('ABSENT')).toHaveClass('cs48-alert');
   });
 
   it('prints Absent in the undertime cell only for IDs 2, 3 and 12', () => {
@@ -192,6 +193,7 @@ describe('DTR print document (CS Form No. 48)', () => {
     const rows = bodyRows();
     expect(cellTexts(rows[2])).toEqual(['3', '', '', '', '', 'ABSENT']);
     expect(within(rows[2]).getByText('ABSENT')).toHaveAttribute('colspan', '2');
+    expect(within(rows[2]).getByText('ABSENT')).toHaveClass('cs48-alert');
   });
 
   it('prints weekend DAYOFF across the times, leaves a weekday with no punches and no remark blank, and totals undertime', () => {
