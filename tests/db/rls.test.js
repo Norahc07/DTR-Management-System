@@ -327,8 +327,14 @@ describe('manual IN/OUT entry', () => {
     const { manual_add_punch: id } = await asUser(db, U.hr, () =>
       one(`select manual_add_punch($1, '2026-08-20', '13:00', 'No fingerprint scan')`, [e1]),
     );
+    const again = await asUser(db, U.hr, () =>
+      one(`select manual_add_punch($1, '2026-08-20', '13:00', 'Same time, afternoon OUT', 3::smallint)`, [e1]),
+    );
+    expect(again.manual_add_punch).toBe(id);
+    expect(await one(`select count(*)::int as n from attendance_events where employee_id = $1 and local_time = '13:00'`, [e1])).toEqual({ n: 1 });
+    expect(await one(`select display_slot from attendance_events where id = $1`, [id])).toEqual({ display_slot: 3 });
     const ev = await one(`select source, local_time::text as t, correction_id, display_slot from attendance_events where id = $1`, [id]);
-    expect(ev).toMatchObject({ source: 'correction', t: '13:00:00', display_slot: null });
+    expect(ev).toMatchObject({ source: 'correction', t: '13:00:00', display_slot: 3 });
     expect(await one(`select status, reason from correction_requests where id = $1`, [ev.correction_id])).toEqual({ status: 'approved', reason: 'No fingerprint scan' });
 
     const { manual_add_punch: pinned } = await asUser(db, U.hr, () =>
@@ -340,6 +346,12 @@ describe('manual IN/OUT entry', () => {
     await asUser(db, U.hr, () => db.query(`select manual_void_punch($1, 'Entered the wrong time')`, [id]));
     expect(await one(`select count(*)::int as n from attendance_event_voids where event_id = $1`, [id])).toEqual({ n: 1 });
     await asUser(db, U.hr, () => db.query(`select manual_void_punch('00000000-0000-0000-0000-000000000000', 'Punch already gone')`));
+    const restored = await asUser(db, U.hr, () =>
+      one(`select manual_add_punch($1, '2026-08-20', '13:00', 'Put 13:00 back', 1::smallint)`, [e1]),
+    );
+    expect(restored.manual_add_punch).toBe(id);
+    expect(await one(`select count(*)::int as n from attendance_event_voids where event_id = $1`, [id])).toEqual({ n: 0 });
+    expect(await one(`select display_slot from attendance_events where id = $1`, [id])).toEqual({ display_slot: 1 });
     await asUser(db, U.hr, () => db.query(`insert into dtr_day_remarks (employee_id, work_date, remark) values ($1, '2026-08-21', 'absent')`, [e1]));
     expect(await one(`select remark from dtr_day_remarks where employee_id = $1 and work_date = '2026-08-21'`, [e1])).toEqual({ remark: 'absent' });
   });
