@@ -124,8 +124,8 @@ describe('half-day remark rules', () => {
   it('keeps full-day remarks only on days without times and Half day only with one empty half', () => {
     expect(remarkFits('sl', ['', '', '', ''])).toBe(true);
     expect(remarkFits('absent', ['', '', '', ''])).toBe(true);
-    expect(remarkFits('absent', ['07:45', '', '', ''])).toBe(false);
-    expect(remarkFits('sl', ['07:45', '', '', ''])).toBe(false);
+    expect(remarkFits('wl', ['07:52', '12:00', '', ''])).toBe(true);
+    expect(remarkFits('sl', ['07:45', '12:00', '13:00', '18:00'])).toBe(false);
     expect(remarkFits('half_day', ['07:45', '12:00', '', ''])).toBe(true);
     expect(remarkFits('half_day', ['', '', '', ''])).toBe(false);
     expect(remarkFits('', ['07:45', '', '', ''])).toBe(true);

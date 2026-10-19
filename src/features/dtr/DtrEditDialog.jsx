@@ -32,9 +32,10 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
     setValues((s) => {
       const times = s[date].times.map((x, k) => (k === i ? v : x));
       const halves = editedHalves(rows.find((r) => r.date === date), times);
+      const oneHalf = halves.am !== halves.pm;
       const remark = s[date].remark === HALF_DAY_REMARK[0]
-        ? (halves.am !== halves.pm ? s[date].remark : '')
-        : (halves.am || halves.pm ? '' : s[date].remark);
+        ? (oneHalf ? s[date].remark : '')
+        : (!halves.am && !halves.pm) || oneHalf ? s[date].remark : '';
       return { ...s, [date]: { times, remark } };
     });
   const setRemark = (date, remark) => setValues((s) => ({ ...s, [date]: { ...s[date], remark } }));
@@ -83,7 +84,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
     >
       <div className="space-y-3 text-sm">
         <p className="text-slate-600">
-          Every Morning IN, Morning OUT, Afternoon IN and Afternoon OUT can be replaced with a new time. Half day is not applied by itself: choose it only after the punches are entered, and only when one half of the day has times. A day with no morning and no afternoon punches does not show Half day. Original fingerprint records are kept and every change is recorded in the audit log.
+          Every Morning IN, Morning OUT, Afternoon IN and Afternoon OUT can be replaced with a new time. When only the morning or only the afternoon has times, the remark list includes Half day and the other remarks (Day Off, OB, L, SL, WL, Seminar, Holiday, Absent). The choice prints across the empty half. A day with no punches does not offer Half day. Original fingerprint records are kept and every change is recorded in the audit log.
         </p>
         {error && <Alert tone="error">{error}</Alert>}
         <Field label="Reason for time changes">{(p) => <Input {...p} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Forgot to punch out; confirmed by supervisor" />}</Field>
@@ -100,7 +101,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
               {rows.map((r) => {
                 const v = values[r.date];
                 const halves = editedHalves(r, v.times);
-                const choices = !halves.am && !halves.pm ? DAY_REMARKS : halves.am !== halves.pm ? [HALF_DAY_REMARK] : [];
+                const choices = !halves.am && !halves.pm ? DAY_REMARKS : halves.am !== halves.pm ? [HALF_DAY_REMARK, ...DAY_REMARKS] : [];
                 const missing = displayedMissing(r) || (r.status === 'no_punches' && !v.remark);
                 return (
                   <tr key={r.date} className={missing ? 'bg-amber-50' : ''}>
@@ -123,7 +124,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
                         className="w-28 rounded border border-slate-300 px-1 py-0.5 text-xs disabled:bg-transparent disabled:text-slate-300"
                         value={v.remark}
                         disabled={!choices.length || busy}
-                        title={halves.am !== halves.pm ? 'Choose Half day only after the punches for the half that was worked are entered' : undefined}
+                        title={halves.am !== halves.pm ? 'Half day, WL, or another remark prints across the empty half' : undefined}
                         onChange={(e) => setRemark(r.date, e.target.value)}
                       >
                         <option value="">{choices.length ? '—' : ''}</option>

@@ -81,6 +81,23 @@ describe('DTR print document (CS Form No. 48)', () => {
     expect(cellTexts(rows[14])).toEqual(['15', '', '', '', '', '', '']);
   });
 
+  it('a half day can print WL across the empty half instead of Half day', () => {
+    const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
+    renderDtr({
+      rows: [
+        ...summaries,
+        day('02', { status: 'complete', punches: [{ minutes: 472, role: 'in' }, { minutes: 720, role: 'out' }] }),
+        day('12', { status: 'complete', punches: [{ minutes: 758, role: 'in' }, { minutes: 1080, role: 'out' }] }),
+      ],
+      remarks: [{ work_date: '2026-09-02', remark: 'wl' }, { work_date: '2026-09-12', remark: 'absent' }],
+    });
+    const rows = bodyRows();
+    expect(cellTexts(rows[1])).toEqual(['2', '07:52', '12:00', 'WL', '', '']);
+    expect(within(rows[1]).getByText('WL')).toHaveAttribute('colspan', '2');
+    expect(cellTexts(rows[11])).toEqual(['12', 'ABSENT', '12:38', '18:00', '', '']);
+    expect(within(rows[11]).getByText('ABSENT')).toHaveClass('cs48-alert');
+  });
+
   it('no-undertime staff: Half day prints in the merged Undertime cell, morning or afternoon', () => {
     const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
     renderDtr({
