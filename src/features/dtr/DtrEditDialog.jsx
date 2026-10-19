@@ -11,7 +11,7 @@ import { saveDayRemarks, saveManualPunches } from './dtrService';
 
 /**
  * Manual IN/OUT entry for one staff member and one half-month, for days the
- * fingerprint was not scanned, plus a remark (Day Off, OB, SL, ...) for days
+ * fingerprint was not scanned, plus a remark (Day Off, OB, SL, Absent, ...) for days
  * without times. Original device punches are kept; time changes are recorded
  * as audited manual entries and the days are recomputed.
  */

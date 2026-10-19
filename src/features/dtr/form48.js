@@ -65,6 +65,7 @@ export const DAY_REMARKS = [
   ['wl', 'WL', 'WL'],
   ['seminar', 'Seminar', 'SEMINAR'],
   ['holiday', 'Holiday', 'HOLIDAY'],
+  ['absent', 'Absent', 'ABSENT'],
 ];
 /** For a day with times in only one half; the empty half's IN/OUT cells print merged. */
 export const HALF_DAY_REMARK = ['half_day', 'Half day', 'HALF DAY'];

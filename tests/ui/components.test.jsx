@@ -158,6 +158,17 @@ describe('DTR print document (CS Form No. 48)', () => {
     expect(dtr.official).toEqual({ regularHours: '7:00 - 6:00 PM', regularDays: 'Mon-Thu', restDays: 'Fri-Sun' });
   });
 
+  it('prints Absent across the undertime cell on a day with no punches', () => {
+    const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
+    renderDtr({
+      rows: [...summaries, day('03', { status: 'no_punches' })],
+      remarks: [{ work_date: '2026-09-03', remark: 'absent' }],
+    });
+    const rows = bodyRows();
+    expect(cellTexts(rows[2])).toEqual(['3', '', '', '', '', 'ABSENT']);
+    expect(within(rows[2]).getByText('ABSENT')).toHaveAttribute('colspan', '2');
+  });
+
   it('prints weekend DAYOFF across the times, leaves a weekday with no punches and no remark blank, and totals undertime', () => {
     renderDtr({
       rows: [
