@@ -5,14 +5,17 @@ import { MONTH_NAMES, daysInMonth, toDateKey } from '@/lib/time';
 export const PERIODS = [
   { value: 'first', label: '1–15', half: 1 },
   { value: 'second', label: '16–end of month', half: 2 },
+  { value: 'month', label: 'Whole month', half: 0 },
 ];
 
 export const isPeriod = (v) => PERIODS.some((p) => p.value === v);
-export const periodHalf = (period) => (period === 'second' ? 2 : 1);
+export const periodHalf = (period) => PERIODS.find((p) => p.value === period)?.half ?? 1;
 export const periodOfDay = (day) => (day <= 15 ? 'first' : 'second');
 
 export function periodDays(year, month, period) {
-  return period === 'second' ? { from: 16, to: daysInMonth(year, month) } : { from: 1, to: 15 };
+  const last = daysInMonth(year, month);
+  if (period === 'month') return { from: 1, to: last };
+  return period === 'second' ? { from: 16, to: last } : { from: 1, to: 15 };
 }
 
 export function periodRange(year, month, period) {

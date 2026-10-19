@@ -62,7 +62,7 @@ export async function saveRestDays(employeeId, restDays) {
 export async function saveManualPunches({ voids, adds, reason }) {
   const sb = requireClient();
   for (const id of voids) unwrap(await sb.rpc('manual_void_punch', { p_event_id: id, p_reason: reason }));
-  for (const a of adds) unwrap(await sb.rpc('manual_add_punch', { p_employee_id: a.employeeId, p_date: a.date, p_time: a.time, p_reason: reason }));
+  for (const a of adds) unwrap(await sb.rpc('manual_add_punch', { p_employee_id: a.employeeId, p_date: a.date, p_time: a.time, p_reason: reason, p_slot: a.slot ?? null }));
 }
 
 export async function finalizeDtr(employeeId, year, month, period, snapshot) {

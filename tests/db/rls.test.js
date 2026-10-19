@@ -327,9 +327,15 @@ describe('manual IN/OUT entry', () => {
     const { manual_add_punch: id } = await asUser(db, U.hr, () =>
       one(`select manual_add_punch($1, '2026-08-20', '13:00', 'No fingerprint scan')`, [e1]),
     );
-    const ev = await one(`select source, local_time::text as t, correction_id from attendance_events where id = $1`, [id]);
-    expect(ev).toMatchObject({ source: 'correction', t: '13:00:00' });
+    const ev = await one(`select source, local_time::text as t, correction_id, display_slot from attendance_events where id = $1`, [id]);
+    expect(ev).toMatchObject({ source: 'correction', t: '13:00:00', display_slot: null });
     expect(await one(`select status, reason from correction_requests where id = $1`, [ev.correction_id])).toEqual({ status: 'approved', reason: 'No fingerprint scan' });
+
+    const { manual_add_punch: pinned } = await asUser(db, U.hr, () =>
+      one(`select manual_add_punch($1, '2026-08-20', '14:00', 'Afternoon arrival', 2::smallint)`, [e1]),
+    );
+    expect(await one(`select display_slot from attendance_events where id = $1`, [pinned])).toEqual({ display_slot: 2 });
+    await asUser(db, U.hr, () => db.query(`select manual_void_punch($1, 'Entered the wrong time')`, [pinned]));
 
     await asUser(db, U.hr, () => db.query(`select manual_void_punch($1, 'Entered the wrong time')`, [id]));
     expect(await one(`select count(*)::int as n from attendance_event_voids where event_id = $1`, [id])).toEqual({ n: 1 });

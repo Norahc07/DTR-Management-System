@@ -7,12 +7,12 @@ describe('manual DTR edits', () => {
   it('adds a missing afternoon IN without touching device punches', () => {
     const r = row([478, 740, null, 1020], ['e1', 'e2', null, 'e3']);
     expect(slotInputValues(r)).toEqual(['07:58', '12:20', '', '17:00']);
-    expect(planDayChanges(r, ['07:58', '12:20', '13:00', '17:00'])).toEqual({ adds: [{ date: '2026-09-17', time: '13:00:00' }], voids: [] });
+    expect(planDayChanges(r, ['07:58', '12:20', '13:00', '17:00'])).toEqual({ adds: [{ date: '2026-09-17', time: '13:00:00', slot: 2 }], voids: [] });
   });
 
   it('a changed time voids the old punch and adds the new one; clearing voids it', () => {
     const r = row([478, 740, null, 1020], ['e1', 'e2', null, 'e3']);
-    expect(planDayChanges(r, ['07:58', '12:00', '', ''])).toEqual({ adds: [{ date: '2026-09-17', time: '12:00:00' }], voids: ['e2', 'e3'] });
+    expect(planDayChanges(r, ['07:58', '12:00', '', ''])).toEqual({ adds: [{ date: '2026-09-17', time: '12:00:00', slot: 1 }], voids: ['e2', 'e3'] });
   });
 
   it('rejects times out of order', () => {

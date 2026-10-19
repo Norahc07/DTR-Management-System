@@ -63,18 +63,58 @@ export function slotPunches(minutesList, mode = 'chronological', splitMinute = 7
   return { slots, extra };
 }
 
+/**
+ * Places punches into the four DTR columns. A punch with displaySlot (0–3)
+ * stays in that column; the rest are placed by slotPunches into columns
+ * still empty. Display only.
+ */
+export function placeSlots(punches, mode = 'chronological', splitMinute = 720, pmOutFrom = splitMinute + 180) {
+  const slots = [null, null, null, null];
+  const ids = [null, null, null, null];
+  const extra = [];
+  const pinned = [];
+  const free = [];
+  for (const p of punches) {
+    const slot = p.displaySlot;
+    if (slot == null || slot < 0 || slot > 3) free.push(p);
+    else pinned.push(p);
+  }
+  for (const p of [...pinned].sort((a, b) => a.minutes - b.minutes)) {
+    if (slots[p.displaySlot] == null) {
+      slots[p.displaySlot] = p.minutes;
+      ids[p.displaySlot] = p.id ?? null;
+    } else extra.push(p.minutes);
+  }
+  const auto = slotPunches(free.map((p) => p.minutes), mode, splitMinute, pmOutFrom);
+  const used = new Set();
+  auto.slots.forEach((m, i) => {
+    if (m == null) return;
+    const idx = free.findIndex((p, k) => !used.has(k) && p.minutes === m);
+    if (idx < 0) return;
+    used.add(idx);
+    if (slots[i] == null) {
+      slots[i] = m;
+      ids[i] = free[idx].id ?? null;
+    } else extra.push(m);
+  });
+  return { slots, ids, extra: [...extra, ...auto.extra] };
+}
+
 const COUNTED_ROLES = new Set(['in', 'out', 'unpaired', 'unused']);
 
 /**
- * Printed slots: a missing morning OUT after a morning IN shows the start of
- * the break (12:00), and a missing afternoon OUT after an afternoon IN shows
- * the end of the day (e.g. 18:00). Stored punches and computations are unchanged.
+ * Printed slots. A missing morning OUT prints that date's scheduled morning
+ * OUT (12:00 when the schedule has none). A missing afternoon OUT prints that
+ * date's scheduled end, so 1-2 October at 8:00-5:00 prints 17:00 and a
+ * 7:00-6:00 range prints 18:00. Stored punches are unchanged.
  */
 export function fillMissingOuts(slots, snap) {
   const out = [...slots];
   if (!snap?.isWorkday) return out;
-  if (out[0] != null && out[1] == null && snap.breakStart != null) out[1] = snap.breakStart;
-  if (out[2] != null && out[3] == null && snap.end != null) out[3] = snap.end;
+  const morningOut = snap.breakStart ?? 12 * 60;
+  const afternoonOut = snap.end ?? 18 * 60;
+  if (out[0] != null && out[1] == null) out[1] = morningOut;
+  if (out[2] != null && out[3] == null) out[3] = afternoonOut;
   return out;
 }
 
@@ -102,20 +142,15 @@ export function buildMonthlyDtr({ year, month, summaries, template, remarks: day
     }
     counts[s.status] = (counts[s.status] || 0) + 1;
     const usablePunches = (s.punches || []).filter((p) => COUNTED_ROLES.has(p.role));
-    const usable = usablePunches.map((p) => p.minutes);
     const snap = s.schedule_snapshot;
-    const hasBreak = snap?.breakStart != null && snap?.breakEnd != null;
-    const split = hasBreak ? Math.round((snap.breakStart + snap.breakEnd) / 2) : template.splitMinute;
-    const pmOutFrom = hasBreak && snap.end != null && snap.end > snap.breakEnd ? Math.round((snap.breakEnd + snap.end) / 2) : undefined;
-    const { slots, extra } = slotPunches(usable, template.slotMode, split, pmOutFrom);
-    const taken = new Set();
-    const slotIds = slots.map((m) => {
-      if (m == null) return null;
-      const idx = usablePunches.findIndex((x, i) => x.minutes === m && !taken.has(i));
-      if (idx < 0) return null;
-      taken.add(idx);
-      return usablePunches[idx].id ?? null;
-    });
+    // Morning ends at the scheduled morning OUT (12:00), not the middle of the
+    // lunch break. Otherwise a 12:30 afternoon arrival with no morning OUT is
+    // printed in the morning OUT column.
+    const morningOutAt = snap?.breakStart ?? null;
+    const split = morningOutAt ?? template.splitMinute;
+    const mode = morningOutAt != null ? 'split_at_break' : template.slotMode;
+    const pmOutFrom = snap?.end != null && snap.breakEnd != null && snap.end > snap.breakEnd ? Math.round((snap.breakEnd + snap.end) / 2) : undefined;
+    const { slots, ids: slotIds, extra } = placeSlots(usablePunches, mode, split, pmOutFrom);
     const printMinutes = fillMissingOuts(slots, snap);
     totals.worked += s.worked_minutes;
     totals.late += s.late_minutes;

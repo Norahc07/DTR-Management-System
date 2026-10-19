@@ -312,5 +312,6 @@ function stripPunch(p) {
     rounded: p.rounded ?? p.minutes,
     role: p.role ?? 'unused',
     source: p.source ?? 'import',
+    displaySlot: p.displaySlot ?? null,
   };
 }

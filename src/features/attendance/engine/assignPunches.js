@@ -50,5 +50,5 @@ export function assignPunchesToDates(events, dates, scheduleDayFor, overnight) {
 }
 
 function toPunch(p, offset) {
-  return { id: p.id, minutes: p.minutes + offset, source: p.source, voided: Boolean(p.voided) };
+  return { id: p.id, minutes: p.minutes + offset, source: p.source, voided: Boolean(p.voided), displaySlot: p.display_slot ?? p.displaySlot ?? null };
 }

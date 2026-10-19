@@ -9,8 +9,6 @@ import { DAY_REMARKS, HALF_DAY_REMARK, emptyHalf, periodDays, periodRange, remar
 import { SLOT_LABELS, orderProblem, planDayChanges, slotInputValues } from './dtrEdit';
 import { saveDayRemarks, saveManualPunches } from './dtrService';
 
-const TIMES_LOCKED = new Set(['rest_day', 'holiday', 'leave']);
-
 /**
  * Manual IN/OUT entry for one staff member and one half-month, for days the
  * fingerprint was not scanned, plus a remark (Day Off, OB, SL, ...) for days
@@ -87,7 +85,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
     >
       <div className="space-y-3 text-sm">
         <p className="text-slate-600">
-          Type missing times (or correct a wrong one). For a day with no times, choose a remark (Day Off, OB, L, SL, WL, Seminar, Holiday); it prints in the Undertime column. For a day with times in only the morning or only the afternoon, choose “Half day”; the empty half’s IN and OUT print as one merged “HALF DAY” cell. Original fingerprint records are kept and every change is recorded in the audit log.
+          Every time cell can be changed, including days off and holidays. A time stays in the column you type it in, so an afternoon arrival is not moved to the morning OUT. For a day with no times, choose a remark (Day Off, OB, L, SL, WL, Seminar, Holiday); it prints in the Undertime column. For a day with times in only the morning or only the afternoon, choose “Half day”; the empty half’s IN and OUT print as one merged “HALF DAY” cell. Original fingerprint records are kept and every change is recorded in the audit log.
         </p>
         {error && <Alert tone="error">{error}</Alert>}
         <Field label="Reason for time changes">{(p) => <Input {...p} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Forgot to punch out; confirmed by supervisor" />}</Field>
@@ -103,13 +101,12 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => {
                 const v = values[r.date];
-                const lockTimes = TIMES_LOCKED.has(r.status);
                 const empty = !v.times.some(Boolean);
                 const half = emptyHalf(v.times);
                 const choices = empty ? DAY_REMARKS : half ? [HALF_DAY_REMARK] : [];
                 const missing = r.status === 'missing_punch' || r.status === 'needs_review' || (r.status === 'no_punches' && !v.remark);
                 return (
-                  <tr key={r.date} className={missing ? 'bg-amber-50' : lockTimes ? 'bg-slate-50' : ''}>
+                  <tr key={r.date} className={missing ? 'bg-amber-50' : ''}>
                     <Td className="whitespace-nowrap font-mono text-xs">{r.date.slice(5)} {r.weekday}</Td>
                     {v.times.map((t, i) => (
                       <Td key={i} className="py-1">
@@ -118,7 +115,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
                           aria-label={`${SLOT_LABELS[i]} ${r.date}`}
                           className="w-28 rounded border border-slate-300 px-1 py-0.5 font-mono text-xs disabled:bg-transparent disabled:text-slate-300"
                           value={t}
-                          disabled={lockTimes || busy}
+                          disabled={busy}
                           onChange={(e) => setTime(r.date, i, e.target.value)}
                         />
                       </Td>

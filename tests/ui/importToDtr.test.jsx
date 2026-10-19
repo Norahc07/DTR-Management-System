@@ -76,7 +76,7 @@ describe('import from the DTR page', () => {
 
     await vi.waitFor(() => expect(onImported).toHaveBeenCalled());
     expect(applyPeriodSchedule).toHaveBeenCalledWith(expect.objectContaining({ start: '2026-09-01', end: '2026-09-30', workdays: [1, 2, 3, 4], amIn: '08:00' }));
-    expect(onImported.mock.calls[0][0]).toMatchObject({ month: 9, period: 'first' });
+    expect(onImported.mock.calls[0][0]).toMatchObject({ month: 9, period: 'month' });
   });
 
   it('does not import when the office hours are out of order', async () => {

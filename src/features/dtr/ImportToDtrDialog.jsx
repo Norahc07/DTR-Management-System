@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Feedback';
@@ -14,7 +14,7 @@ import { inspectWorkbook, readWorkbook, sha256Hex, validateWorkbookFile, DEFAULT
 import { buildImportPreview, parseWorkbook } from '@/features/import/preview';
 import { ignoredBiometricIds, initialConfig, loadSavedMapping, saveMapping } from '@/features/import/importConfig';
 import { findBatchesByHash, runImport } from '@/features/import/importService';
-import { periodOfDay } from './form48';
+import { DEFAULT_HOURS, newSegment, nextSegment, segmentProblem } from './importSettings';
 
 const IMPORT_PERIODS = [
   { value: 'first', label: '1–15' },
@@ -22,7 +22,6 @@ const IMPORT_PERIODS = [
   { value: 'month', label: 'Whole month' },
 ];
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
-const DEFAULT_HOURS = { workdays: [1, 2, 3, 4, 5], amIn: '07:00', amOut: '12:00', pmIn: '13:00', pmOut: '18:00' };
 
 function rangeOf(year, month, period) {
   const last = daysInMonth(year, month);
@@ -69,8 +68,16 @@ function ImportToDtr({ open, onClose, onImported }) {
   const busy = state.phase === 'reading' || state.phase === 'importing';
   const setOpt = (patch) => {
     setAck(false);
-    setOpts((o) => ({ ...o, ...patch }));
+    setOpts((o) => {
+      const next = { ...o, ...patch };
+      if (o && ('year' in patch || 'month' in patch || 'period' in patch) && o.segments?.length === 1) {
+        const r = rangeOf(next.year, next.month, next.period);
+        next.segments = [{ ...o.segments[0], from: r.start, to: r.end }];
+      }
+      return next;
+    });
   };
+  const setSegment = (id, patch) => setOpt({ segments: opts.segments.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
   const onFile = async (f) => {
     if (!f) return;
@@ -90,7 +97,11 @@ function ImportToDtr({ open, onClose, onImported }) {
       const employees = await listAllEmployees();
       const sha256 = await sha256Hex(bytes);
       const previous = await findBatchesByHash(sha256).catch(() => []);
-      setOpts({ year: Number(config.year), month: Number(config.month), period: periodOfDates(parsed.records.map((r) => r.date)), ...DEFAULT_HOURS });
+      const period = periodOfDates(parsed.records.map((r) => r.date));
+      const year = Number(config.year);
+      const month = Number(config.month);
+      const span = rangeOf(year, month, period);
+      setOpts({ year, month, period, segments: [newSegment(span.start, span.end)] });
       setState({ phase: 'preview', file: { name: f.name, size: f.size, sha256 }, book, config, employees, warnings, previous });
     } catch (e) {
       setState({ phase: 'pick', error: e.message });
@@ -111,13 +122,9 @@ function ImportToDtr({ open, onClose, onImported }) {
 
   const hoursError = !opts
     ? null
-    : !opts.workdays.length
-      ? 'Tick at least one work day.'
-      : !(opts.amIn && opts.amOut && opts.pmIn && opts.pmOut) || !(opts.amIn < opts.amOut && opts.amOut <= opts.pmIn && opts.pmIn < opts.pmOut)
-        ? 'Times must be in order: morning IN, morning OUT, afternoon IN, afternoon OUT.'
-        : !(opts.year >= 2000 && opts.year <= 2100)
-          ? 'Enter a year between 2000 and 2100.'
-          : null;
+    : !(opts.year >= 2000 && opts.year <= 2100)
+      ? 'Enter a year between 2000 and 2100.'
+      : segmentProblem(opts.segments, range);
 
   const commit = async () => {
     const { file } = state;
@@ -127,7 +134,9 @@ function ImportToDtr({ open, onClose, onImported }) {
       const employeeIds = preview.employees.filter((e) => e.matched).map((e) => e.employee.id);
       if (employeeIds.length) {
         setState((s) => ({ ...s, progress: { message: 'Saving office hours for the period…' } }));
-        await applyPeriodSchedule({ employeeIds, start: range.start, end: range.end, workdays: opts.workdays, amIn: opts.amIn, amOut: opts.amOut, pmIn: opts.pmIn, pmOut: opts.pmOut });
+        for (const s of opts.segments) {
+          await applyPeriodSchedule({ employeeIds, start: s.from, end: s.to, workdays: s.workdays, amIn: s.amIn, amOut: s.amOut, pmIn: s.pmIn, pmOut: s.pmOut });
+        }
       }
       const { batch, result } = await runImport({ file, config, period: range, preview, onProgress: (progress) => setState((s) => ({ ...s, progress })) });
       saveMapping(config);
@@ -140,11 +149,10 @@ function ImportToDtr({ open, onClose, onImported }) {
           recomputeError = e.message;
         }
       }
-      const last = preview.records.reduce((max, r) => (r.date > max ? r.date : max), '') || range.end;
       onImported({
         year: opts.year,
         month: opts.month,
-        period: opts.period === 'month' ? periodOfDay(Number(last.slice(8, 10))) : opts.period,
+        period: opts.period,
         employeeIds,
         batch: { id: batch.id, fileName: batch.file_name },
         result,
@@ -160,7 +168,10 @@ function ImportToDtr({ open, onClose, onImported }) {
   const t = preview?.totals;
   const needsAck = t ? t.errors > 0 || t.unmatchedIds > 0 : false;
   const nothing = t ? t.validPunches === 0 : true;
-  const toggleDay = (wd, on) => setOpt({ workdays: on ? [...new Set([...opts.workdays, wd])] : opts.workdays.filter((d) => d !== wd) });
+  const toggleDay = (id, wd, on) => {
+    const seg = opts.segments.find((s) => s.id === id);
+    setSegment(id, { workdays: on ? [...new Set([...seg.workdays, wd])] : seg.workdays.filter((d) => d !== wd) });
+  };
   const showPreview = (state.phase === 'preview' || state.phase === 'importing') && opts && preview;
 
   return (
@@ -227,27 +238,43 @@ function ImportToDtr({ open, onClose, onImported }) {
                   )}
                 </Field>
               </div>
-              <div>
-                <p className="mb-1 text-sm font-medium text-slate-700">Work days <span className="font-normal text-slate-500">(unticked days are days off)</span></p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  {MONDAY_FIRST.map((wd) => (
-                    <Checkbox key={wd} label={WEEKDAY_SHORT[wd]} checked={opts.workdays.includes(wd)} onChange={(e) => toggleDay(wd, e.target.checked)} />
-                  ))}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-slate-700">Office hours by date</p>
+                  <Button size="sm" variant="secondary" icon={Plus} onClick={() => setOpt({ segments: [...opts.segments, nextSegment(opts.segments, range)] })}>Add date range</Button>
                 </div>
+                <p className="text-xs text-slate-500">Use more than one range when the hours change during the month. For example October 1–2 at 8:00–5:00, Monday to Friday, then October 5 to the end at 7:00–6:00, Monday to Thursday. Days between ranges keep the schedule they already had.</p>
+                {opts.segments.map((seg, index) => (
+                  <div key={seg.id} className="space-y-2 rounded-md border border-slate-200 p-3">
+                    <div className="flex items-end gap-3">
+                      <Field label={index === 0 ? 'From' : `From ${index + 1}`} className="flex-1">
+                        {(p) => <Input {...p} type="date" min={range.start} max={range.end} value={seg.from} onChange={(e) => setSegment(seg.id, { from: e.target.value })} />}
+                      </Field>
+                      <Field label={index === 0 ? 'To' : `To ${index + 1}`} className="flex-1">
+                        {(p) => <Input {...p} type="date" min={range.start} max={range.end} value={seg.to} onChange={(e) => setSegment(seg.id, { to: e.target.value })} />}
+                      </Field>
+                      {opts.segments.length > 1 && (
+                        <Button size="sm" variant="ghost" icon={Trash2} aria-label={`Remove date range ${index + 1}`} onClick={() => setOpt({ segments: opts.segments.filter((s) => s.id !== seg.id) })}>Remove</Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {MONDAY_FIRST.map((wd) => (
+                        <Checkbox key={wd} label={index === 0 ? WEEKDAY_SHORT[wd] : `${WEEKDAY_SHORT[wd]} ${index + 1}`} checked={seg.workdays.includes(wd)} onChange={(e) => toggleDay(seg.id, wd, e.target.checked)} />
+                      ))}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <Field label={index === 0 ? 'Morning IN' : `Morning IN ${index + 1}`}>{(p) => <Input {...p} type="time" value={seg.amIn} onChange={(e) => setSegment(seg.id, { amIn: e.target.value })} />}</Field>
+                      <Field label={index === 0 ? 'Morning OUT' : `Morning OUT ${index + 1}`}>{(p) => <Input {...p} type="time" value={seg.amOut} onChange={(e) => setSegment(seg.id, { amOut: e.target.value })} />}</Field>
+                      <Field label={index === 0 ? 'Afternoon IN' : `Afternoon IN ${index + 1}`}>{(p) => <Input {...p} type="time" value={seg.pmIn} onChange={(e) => setSegment(seg.id, { pmIn: e.target.value })} />}</Field>
+                      <Field label={index === 0 ? 'Afternoon OUT' : `Afternoon OUT ${index + 1}`}>{(p) => <Input {...p} type="time" value={seg.pmOut} onChange={(e) => setSegment(seg.id, { pmOut: e.target.value })} />}</Field>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Late from {clock12(plusMinute(seg.amIn || '00:00'))} in the morning and {clock12(plusMinute(seg.pmIn || '00:00'))} in the afternoon. A missing OUT prints {clock12(seg.amOut || '00:00')} or {clock12(seg.pmOut || '00:00')}.
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="grid gap-3 sm:grid-cols-4">
-                <Field label="Morning IN">{(p) => <Input {...p} type="time" value={opts.amIn} onChange={(e) => setOpt({ amIn: e.target.value })} />}</Field>
-                <Field label="Morning OUT">{(p) => <Input {...p} type="time" value={opts.amOut} onChange={(e) => setOpt({ amOut: e.target.value })} />}</Field>
-                <Field label="Afternoon IN">{(p) => <Input {...p} type="time" value={opts.pmIn} onChange={(e) => setOpt({ pmIn: e.target.value })} />}</Field>
-                <Field label="Afternoon OUT">{(p) => <Input {...p} type="time" value={opts.pmOut} onChange={(e) => setOpt({ pmOut: e.target.value })} />}</Field>
-              </div>
-              {hoursError ? (
-                <Alert tone="error">{hoursError}</Alert>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  Late from {clock12(plusMinute(opts.amIn))} in the morning and {clock12(plusMinute(opts.pmIn))} in the afternoon. A missing morning OUT prints {clock12(opts.amOut)} and a missing afternoon OUT prints {clock12(opts.pmOut)}. These hours apply to the imported staff for {range.start} to {range.end} only; staff with their own days off (set in Edit all DTRs) keep them.
-                </p>
-              )}
+              {hoursError && <Alert tone="error">{hoursError}</Alert>}
             </fieldset>
 
             <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">

@@ -31,7 +31,7 @@ export function planDayChanges(row, values) {
       if (!row.slotIds[i]) throw new Error(`${row.date}: the existing ${SLOT_LABELS[i]} cannot be changed here.`);
       voids.push(row.slotIds[i]);
     }
-    if (value) adds.push({ date: row.date, time: `${value}:00` });
+    if (value) adds.push({ date: row.date, time: `${value}:00`, slot: i });
   });
   return { adds, voids };
 }

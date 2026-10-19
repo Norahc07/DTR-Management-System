@@ -67,7 +67,7 @@ export async function recomputeAttendance({ employeeIds, from, to, onProgress = 
     onProgress({ message: `Computing employees ${i + 1}-${Math.min(i + EMP_CHUNK, employees.length)} of ${employees.length}…`, done: i, total: employees.length });
     const [events, assignments, leaves] = await Promise.all([
       fetchAll(() =>
-        sb.from('attendance_events').select('id, employee_id, local_date, local_time, source').in('employee_id', ids).gte('local_date', addDays(from, -1)).lte('local_date', addDays(to, 1)).order('id'),
+        sb.from('attendance_events').select('id, employee_id, local_date, local_time, source, display_slot').in('employee_id', ids).gte('local_date', addDays(from, -1)).lte('local_date', addDays(to, 1)).order('id'),
       ),
       fetchAll(() => sb.from('employee_schedules').select('employee_id, schedule_id, effective_from, effective_to').in('employee_id', ids).order('id')),
       fetchAll(() => sb.from('leave_records').select('employee_id, start_date, end_date, leave_type, is_cancelled').in('employee_id', ids).lte('start_date', to).gte('end_date', from).order('id')),
