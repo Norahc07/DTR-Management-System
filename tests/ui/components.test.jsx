@@ -171,9 +171,21 @@ describe('DTR print document (CS Form No. 48)', () => {
     expect(dtr.official).toEqual({ regularHours: '7:00 - 6:00 PM', regularDays: 'Mon-Thu', restDays: 'Fri-Sun' });
   });
 
-  it('prints Absent across the undertime cell on a day with no punches', () => {
+  it('prints Absent across the morning and afternoon columns for staff other than IDs 2, 3 and 12', () => {
     const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
     renderDtr({
+      rows: [...summaries, day('03', { status: 'no_punches' })],
+      remarks: [{ work_date: '2026-09-03', remark: 'absent' }],
+    });
+    const rows = bodyRows();
+    expect(cellTexts(rows[2])).toEqual(['3', 'ABSENT', '', '']);
+    expect(within(rows[2]).getByText('ABSENT')).toHaveAttribute('colspan', '4');
+  });
+
+  it('prints Absent in the undertime cell only for IDs 2, 3 and 12', () => {
+    const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
+    renderDtr({
+      emp: { ...employee, biometric_id: '12' },
       rows: [...summaries, day('03', { status: 'no_punches' })],
       remarks: [{ work_date: '2026-09-03', remark: 'absent' }],
     });

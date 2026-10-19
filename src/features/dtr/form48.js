@@ -70,7 +70,7 @@ export function shownOnHalfPeriod(employee) {
   return !HALF_PERIOD_HIDDEN_IDS.includes(String(employee?.biometric_id ?? '').trim());
 }
 
-/** Remarks chosen for days without times; printed in the merged Undertime cell. */
+/** Remarks chosen for days without times. Other staff print them across the morning and afternoon columns; IDs 2, 3 and 12 print them in Undertime. */
 export const DAY_REMARKS = [
   ['day_off', 'Day Off', 'DAYOFF'],
   ['ob', 'OB', 'OB'],
@@ -143,6 +143,8 @@ export function buildForm48({ dtr, year, month, period, showUndertime = true, fo
     const weekdayName = r.weekday.toUpperCase();
     const printRemark = (v) => (noUndertime && v === 'day_off' ? weekdayName : REMARK_PRINT[v] ?? null);
     const remark = !hasTimes && r.remark ? printRemark(r.remark) : null;
+    // Other staff print the remark across the morning and afternoon columns. IDs 2, 3 and 12 keep it in Undertime.
+    if (remark && !noUndertime) return { day, kind: 'label', text: remark };
     if (BLANK_STATUSES.has(r.status)) return { day, kind: 'blank', remark };
     const label = DAY_LABELS[r.status];
     if (label && !hasTimes) {
