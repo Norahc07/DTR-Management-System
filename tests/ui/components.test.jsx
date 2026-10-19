@@ -25,7 +25,7 @@ const bodyRows = () => within(screen.getByRole('table')).getAllByRole('row').fil
 const cellTexts = (row) => within(row).getAllByRole('cell').map((c) => c.textContent);
 
 describe('DTR print document (CS Form No. 48)', () => {
-  it('renders the form header, 31 day rows and recorded times only, marked as draft', () => {
+  it('renders the form header, 31 day rows and recorded times only', () => {
     renderDtr();
     expect(screen.getByText('Civil Service Form No. 48')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'DAILY TIME RECORD' })).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('DTR print document (CS Form No. 48)', () => {
     // Missing punch: only the one recorded time, no invented time-out; 15 min late.
     expect(cellTexts(rows[1])).toEqual(['2', '08:15', '', '', '', '', '15']);
     expect(cellTexts(rows[30])).toEqual(['31', '', '', '', '', '', '']);
-    expect(screen.getByText(/draft — not finalized/i)).toBeInTheDocument();
+    expect(screen.queryByText(/draft — not finalized/i)).toBeNull();
   });
 
   it('readiness and totals count only the selected half', () => {

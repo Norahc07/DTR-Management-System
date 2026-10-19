@@ -1,10 +1,7 @@
 import { formatDateKey, instantToDateKey } from '@/lib/time';
 import { buildForm48, dtrHeader, hoursAndMinutes, usesRemarkUndertime } from './form48';
 
-/**
- * One Civil Service Form No. 48 (half of an A4 portrait sheet). A small
- * "Draft" note is printed until a finalization record exists.
- */
+/** One Civil Service Form No. 48 (half of an A4 portrait sheet). */
 export function DtrDocument({ org, employee, year, month, period, dtr, template, finalization, header: override = null }) {
   const t = template;
   const { rows, totalUndertime } = buildForm48({ dtr, year, month, period, showUndertime: t.showComputation, format: usesRemarkUndertime(employee) ? 'no_undertime' : 'standard' });
@@ -104,11 +101,11 @@ export function DtrDocument({ org, employee, year, month, period, dtr, template,
       <p className="cs48-center cs48-italic">{t.verifiedText}</p>
       <p className="cs48-sign">{(employee.verifier_name || t.verifierName).toUpperCase()}</p>
       <p className="cs48-center cs48-sign-title">{employee.verifier_name ? employee.verifier_title || '' : t.verifierTitle}</p>
-      <p className="cs48-status">
-        {finalization
-          ? `Finalized ${formatDateKey(instantToDateKey(finalization.finalized_at, org?.timezone || 'Asia/Manila'), org?.date_format)}`
-          : 'Draft — not finalized'}
-      </p>
+      {finalization && (
+        <p className="cs48-status">
+          Finalized {formatDateKey(instantToDateKey(finalization.finalized_at, org?.timezone || 'Asia/Manila'), org?.date_format)}
+        </p>
+      )}
     </article>
   );
 }
