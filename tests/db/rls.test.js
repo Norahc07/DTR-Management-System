@@ -339,6 +339,7 @@ describe('manual IN/OUT entry', () => {
 
     await asUser(db, U.hr, () => db.query(`select manual_void_punch($1, 'Entered the wrong time')`, [id]));
     expect(await one(`select count(*)::int as n from attendance_event_voids where event_id = $1`, [id])).toEqual({ n: 1 });
+    await asUser(db, U.hr, () => db.query(`select manual_void_punch('00000000-0000-0000-0000-000000000000', 'Punch already gone')`));
   });
 });
 

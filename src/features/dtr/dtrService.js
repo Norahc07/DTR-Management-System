@@ -58,10 +58,16 @@ export async function saveRestDays(employeeId, restDays) {
   if (!rows?.length) throw new Error('Days off were not saved: your account is not allowed to edit this employee.');
 }
 
-/** Applies manual DTR edits for one employee: voids first, then new punches. */
+/** Applies manual DTR edits for one employee: voids first, then new punches. A punch that is already gone is skipped so the new time is still saved. */
 export async function saveManualPunches({ voids, adds, reason }) {
   const sb = requireClient();
-  for (const id of voids) unwrap(await sb.rpc('manual_void_punch', { p_event_id: id, p_reason: reason }));
+  for (const id of [...new Set(voids)].filter(Boolean)) {
+    try {
+      unwrap(await sb.rpc('manual_void_punch', { p_event_id: id, p_reason: reason }));
+    } catch (e) {
+      if (!/punch not found/i.test(e.message)) throw e;
+    }
+  }
   for (const a of adds) unwrap(await sb.rpc('manual_add_punch', { p_employee_id: a.employeeId, p_date: a.date, p_time: a.time, p_reason: reason, p_slot: a.slot ?? null }));
 }
 

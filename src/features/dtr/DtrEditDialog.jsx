@@ -5,8 +5,8 @@ import { Alert } from '@/components/ui/Feedback';
 import { Field, Input } from '@/components/ui/Form';
 import { Table, Td, Th } from '@/components/ui/Table';
 import { recomputeAttendance } from '@/features/attendance/recomputeService';
-import { DAY_REMARKS, HALF_DAY_REMARK, emptyHalf, periodDays, periodRange, remarkFits } from './form48';
-import { SLOT_LABELS, orderProblem, planDayChanges, slotInputValues } from './dtrEdit';
+import { DAY_REMARKS, HALF_DAY_REMARK, periodDays, periodRange } from './form48';
+import { SLOT_LABELS, editedHalves, planDayChanges, slotInputValues } from './dtrEdit';
 import { saveDayRemarks, saveManualPunches } from './dtrService';
 
 /**
@@ -31,7 +31,11 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
   const setTime = (date, i, v) =>
     setValues((s) => {
       const times = s[date].times.map((x, k) => (k === i ? v : x));
-      return { ...s, [date]: { times, remark: remarkFits(s[date].remark, times) ? s[date].remark : '' } };
+      const halves = editedHalves(rows.find((r) => r.date === date), times);
+      const remark = s[date].remark === HALF_DAY_REMARK[0]
+        ? (halves.am !== halves.pm ? s[date].remark : '')
+        : (halves.am || halves.pm ? '' : s[date].remark);
+      return { ...s, [date]: { times, remark } };
     });
   const setRemark = (date, remark) => setValues((s) => ({ ...s, [date]: { ...s[date], remark } }));
 
@@ -44,16 +48,10 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
     if (timesChanged.length && reason.trim().length < 5) return setError('Enter a reason for the time changes (at least 5 characters).');
     const adds = [];
     const voids = [];
-    try {
-      for (const r of timesChanged) {
-        const problem = orderProblem(values[r.date].times);
-        if (problem) throw new Error(`${r.date}: ${problem}`);
-        const plan = planDayChanges(r, values[r.date].times);
-        voids.push(...plan.voids);
-        adds.push(...plan.adds.map((a) => ({ ...a, employeeId: doc.emp.id })));
-      }
-    } catch (e) {
-      return setError(e.message);
+    for (const r of timesChanged) {
+      const plan = planDayChanges(r, values[r.date].times);
+      voids.push(...plan.voids);
+      adds.push(...plan.adds.map((a) => ({ ...a, employeeId: doc.emp.id })));
     }
     setBusy(true);
     try {
@@ -85,7 +83,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
     >
       <div className="space-y-3 text-sm">
         <p className="text-slate-600">
-          Every time cell can be changed, including days off and holidays. A time stays in the column you type it in, so an afternoon arrival is not moved to the morning OUT. For a day with no times, choose a remark (Day Off, OB, L, SL, WL, Seminar, Holiday); it prints in the Undertime column. For a day with times in only the morning or only the afternoon, choose “Half day”; the empty half’s IN and OUT print as one merged “HALF DAY” cell. Original fingerprint records are kept and every change is recorded in the audit log.
+          Every Morning IN, Morning OUT, Afternoon IN and Afternoon OUT can be replaced with a new time. Half day is not applied by itself: choose it only after the punches are entered, and only when one half of the day has times. A day with no morning and no afternoon punches does not show Half day. Original fingerprint records are kept and every change is recorded in the audit log.
         </p>
         {error && <Alert tone="error">{error}</Alert>}
         <Field label="Reason for time changes">{(p) => <Input {...p} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Forgot to punch out; confirmed by supervisor" />}</Field>
@@ -101,9 +99,8 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => {
                 const v = values[r.date];
-                const empty = !v.times.some(Boolean);
-                const half = emptyHalf(v.times);
-                const choices = empty ? DAY_REMARKS : half ? [HALF_DAY_REMARK] : [];
+                const halves = editedHalves(r, v.times);
+                const choices = !halves.am && !halves.pm ? DAY_REMARKS : halves.am !== halves.pm ? [HALF_DAY_REMARK] : [];
                 const missing = r.status === 'missing_punch' || r.status === 'needs_review' || (r.status === 'no_punches' && !v.remark);
                 return (
                   <tr key={r.date} className={missing ? 'bg-amber-50' : ''}>
@@ -126,7 +123,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
                         className="w-28 rounded border border-slate-300 px-1 py-0.5 text-xs disabled:bg-transparent disabled:text-slate-300"
                         value={v.remark}
                         disabled={!choices.length || busy}
-                        title={half ? `Only the ${half === 'am' ? 'morning' : 'afternoon'} is empty: “Half day” prints across its IN/OUT cells` : undefined}
+                        title={halves.am !== halves.pm ? 'Choose Half day only after the punches for the half that was worked are entered' : undefined}
                         onChange={(e) => setRemark(r.date, e.target.value)}
                       >
                         <option value="">{choices.length ? '—' : ''}</option>
