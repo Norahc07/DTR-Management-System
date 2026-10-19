@@ -172,6 +172,7 @@ export function buildMonthlyDtr({ year, month, summaries, template, remarks: day
       slotMinutes: slots,
       printSlots: printMinutes.map((m) => (m == null ? '' : minutesToClock(m, { twelveHour: twelve }))),
       printSlotMinutes: printMinutes,
+      schedule: snap ?? null,
       slotIds,
       extra,
       worked: s.worked_minutes,

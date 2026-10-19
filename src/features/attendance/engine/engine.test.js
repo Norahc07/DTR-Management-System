@@ -161,6 +161,12 @@ describe('lateness by DTR slot (office hours 7:00-12:00 / 1:00-6:00 PM)', () => 
     expect(late('07:01', '12:00', '13:01', '18:00')).toBe(2);
   });
 
+  it('an afternoon return before 1:00 PM is not undertime when the outs are 12:00 and 6:00', () => {
+    const day = computeDay({ date: '2026-10-05', punches: punches('06:56', '12:00', '12:57', '18:00'), schedule: office, rules: r });
+    expect(day.lateMinutes).toBe(0);
+    expect(day.undertimeMinutes).toBe(0);
+  });
+
   it('counts a late afternoon IN even when an OUT is missing', () => {
     expect(late('07:00', '12:00', '13:20')).toBe(20); // no afternoon OUT
     expect(late('07:10', '13:05')).toBe(15); // no OUTs at all

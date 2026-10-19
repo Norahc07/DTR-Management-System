@@ -50,13 +50,13 @@ describe('DTR print document (CS Form No. 48)', () => {
     const dtr = buildMonthlyDtr({ year: 2026, month: 9, summaries: rows, template: resolveTemplate() });
     const first = periodSummary({ dtr, summaries: rows, year: 2026, month: 9, period: 'first' });
     expect(first.rows).toHaveLength(15);
-    expect(first.unresolved).toBe(1);
+    expect(first.unresolved).toBe(2);
     expect(first.notComputed).toBe(13);
     expect(first.policyMissing).toBe(false);
     expect(first.totals).toEqual({ worked: 480, late: 15, undertime: 0, overtime: 0 });
     const second = periodSummary({ dtr, summaries: rows, year: 2026, month: 9, period: 'second' });
     expect(second.rows.map((r) => r.day)).toEqual(Array.from({ length: 15 }, (_, i) => i + 16));
-    expect(second.unresolved).toBe(0);
+    expect(second.unresolved).toBe(1);
     expect(second.policyMissing).toBe(true);
     expect(second.totals.undertime).toBe(20);
   });

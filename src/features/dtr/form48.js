@@ -113,7 +113,7 @@ export function periodSummary({ dtr, summaries, year, month, period }) {
     rows,
     totals,
     notComputed: rows.filter((r) => r.status === 'not_computed').length,
-    unresolved: rows.filter((r) => r.status === 'missing_punch' || r.status === 'needs_review').length,
+    unresolved: rows.filter((r) => displayedMissing(r)).length,
     policyMissing: summaries.some((s) => s.work_date >= start && s.work_date <= end && !s.policy_id),
     extraPunches: rows.some((r) => r.extra?.length),
   };
@@ -123,6 +123,36 @@ export function periodSummary({ dtr, summaries, year, month, period }) {
 export function hoursAndMinutes(minutes) {
   if (!minutes) return { hours: '', min: '' };
   return { hours: Math.floor(minutes / 60) || '', min: minutes % 60 || '' };
+}
+
+/**
+ * Undertime from the times printed on the form, judged against that date's
+ * hours: morning IN after the start, morning OUT before 12:00, afternoon IN
+ * after 1:00, afternoon OUT before the end. Lunch between the scheduled
+ * morning OUT and afternoon IN is not undertime, and an automatic OUT that
+ * prints the scheduled time adds nothing.
+ * Returns null when the day's hours are not known.
+ */
+export function displayedUndertime(minutes, snap) {
+  if (!snap || snap.isWorkday === false || snap.start == null || snap.end == null) return null;
+  const [amIn, amOut, pmIn, pmOut] = minutes ?? [];
+  let n = 0;
+  if (amIn != null) n += Math.max(0, amIn - snap.start);
+  if (snap.breakStart != null && amOut != null) n += Math.max(0, snap.breakStart - amOut);
+  if (snap.breakEnd != null && pmIn != null) n += Math.max(0, pmIn - snap.breakEnd);
+  if (pmOut != null) n += Math.max(0, snap.end - pmOut);
+  return n;
+}
+
+/** A printed day is missing an IN, or has more than one blank time. An automatic OUT that now shows a time does not count. */
+export function displayedMissing(row) {
+  if (!row) return false;
+  if (['rest_day', 'holiday', 'leave', 'no_punches', 'no_data', 'not_computed'].includes(row.status)) return false;
+  if (row.remark && row.remark !== 'half_day') return false;
+  const shown = row.printSlots?.some?.(Boolean) ? row.printSlots : row.slots;
+  if (!shown) return row.status === 'missing_punch' || row.status === 'needs_review';
+  const blank = [0, 1, 2, 3].filter((i) => !shown[i]);
+  return !shown[0] || !shown[2] || blank.length > 1;
 }
 
 /**
@@ -152,7 +182,8 @@ export function buildForm48({ dtr, year, month, period, showUndertime = true, fo
       return { day, kind: 'label', ...label, remark };
     }
     if (!hasTimes) return { day, kind: 'blank', remark };
-    const undertime = countUndertime ? (r.late || 0) + (r.undertime || 0) : 0;
+    const fromSlots = displayedUndertime(r.printSlotMinutes, r.schedule);
+    const undertime = countUndertime ? (fromSlots ?? ((r.late || 0) + (r.undertime || 0))) : 0;
     totalUndertime += undertime;
     const halfDay = r.remark === HALF_DAY_REMARK[0] && hasTimes ? emptyHalf(r.slots) : null;
     if (halfDay && noUndertime) return { day, kind: 'times', slots: r.printSlots ?? r.slots, undertime, remark: HALF_DAY_REMARK[2] };

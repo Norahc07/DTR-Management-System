@@ -5,7 +5,7 @@ import { Alert } from '@/components/ui/Feedback';
 import { Field, Input } from '@/components/ui/Form';
 import { Table, Td, Th } from '@/components/ui/Table';
 import { recomputeAttendance } from '@/features/attendance/recomputeService';
-import { DAY_REMARKS, HALF_DAY_REMARK, periodDays, periodRange } from './form48';
+import { DAY_REMARKS, HALF_DAY_REMARK, displayedMissing, periodDays, periodRange } from './form48';
 import { SLOT_LABELS, editedHalves, planDayChanges, slotInputValues } from './dtrEdit';
 import { saveDayRemarks, saveManualPunches } from './dtrService';
 
@@ -101,7 +101,7 @@ function DtrEdit({ doc, year, month, period, onClose, onSaved }) {
                 const v = values[r.date];
                 const halves = editedHalves(r, v.times);
                 const choices = !halves.am && !halves.pm ? DAY_REMARKS : halves.am !== halves.pm ? [HALF_DAY_REMARK] : [];
-                const missing = r.status === 'missing_punch' || r.status === 'needs_review' || (r.status === 'no_punches' && !v.remark);
+                const missing = displayedMissing(r) || (r.status === 'no_punches' && !v.remark);
                 return (
                   <tr key={r.date} className={missing ? 'bg-amber-50' : ''}>
                     <Td className="whitespace-nowrap font-mono text-xs">{r.date.slice(5)} {r.weekday}</Td>
