@@ -84,7 +84,7 @@ describe('DTR print document (CS Form No. 48)', () => {
   it('no-undertime staff: Half day prints in the merged Undertime cell, morning or afternoon', () => {
     const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
     renderDtr({
-      emp: { ...employee, dtr_format: 'no_undertime' },
+      emp: { ...employee, biometric_id: '3', dtr_format: 'standard' },
       rows: [
         ...summaries,
         day('10', { status: 'complete', punches: [{ minutes: 465, role: 'in' }, { minutes: 720, role: 'out' }], undertime_minutes: 300 }),
@@ -98,10 +98,23 @@ describe('DTR print document (CS Form No. 48)', () => {
     expect(cellTexts(rows[10])).toEqual(['11', '', '', '13:00', '18:00', 'HALF DAY']);
   });
 
+  it('a replacement who is not ID 2, 3 or 12 still shows undertime figures', () => {
+    const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
+    renderDtr({
+      emp: { ...employee, biometric_id: '4', dtr_format: 'no_undertime' },
+      rows: [
+        ...summaries,
+        day('10', { status: 'complete', punches: [{ minutes: 465, role: 'in' }, { minutes: 720, role: 'out' }], undertime_minutes: 300 }),
+      ],
+      remarks: [{ work_date: '2026-09-10', remark: 'half_day' }],
+    });
+    expect(cellTexts(bodyRows()[9])).toEqual(['10', '07:45', '12:00', 'HALF DAY', '5', '']);
+  });
+
   it('no-undertime staff: rest days show the weekday, remarks fill the merged Undertime cell, nothing is counted', () => {
     const day = (d, extra) => ({ work_date: `2026-09-${d}`, punches: [], worked_minutes: 0, late_minutes: 0, undertime_minutes: 0, overtime_minutes: 0, policy_id: 'p', flags: [], ...extra });
     renderDtr({
-      emp: { ...employee, dtr_format: 'no_undertime' },
+      emp: { ...employee, biometric_id: '3', dtr_format: 'standard' },
       rows: [
         ...summaries,
         day('05', { status: 'rest_day' }),

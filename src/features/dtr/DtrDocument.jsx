@@ -1,5 +1,5 @@
 import { formatDateKey, instantToDateKey } from '@/lib/time';
-import { buildForm48, dtrHeader, hoursAndMinutes } from './form48';
+import { buildForm48, dtrHeader, hoursAndMinutes, usesRemarkUndertime } from './form48';
 
 /**
  * One Civil Service Form No. 48 (half of an A4 portrait sheet). A small
@@ -7,7 +7,7 @@ import { buildForm48, dtrHeader, hoursAndMinutes } from './form48';
  */
 export function DtrDocument({ org, employee, year, month, period, dtr, template, finalization, header: override = null }) {
   const t = template;
-  const { rows, totalUndertime } = buildForm48({ dtr, year, month, period, showUndertime: t.showComputation, format: employee.dtr_format });
+  const { rows, totalUndertime } = buildForm48({ dtr, year, month, period, showUndertime: t.showComputation, format: usesRemarkUndertime(employee) ? 'no_undertime' : 'standard' });
   const header = dtrHeader({ year, month, period, official: dtr.official, template: t, override });
   const total = hoursAndMinutes(totalUndertime);
   const name = (employee.full_name || '').toUpperCase();

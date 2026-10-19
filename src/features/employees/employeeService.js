@@ -1,4 +1,5 @@
 import { fetchAll, requireClient, unwrap } from '@/lib/supabase';
+import { usesRemarkUndertime } from '@/features/dtr/form48';
 import { normalizeName } from '@/features/import/matching';
 
 const EMP_COLUMNS =
@@ -117,6 +118,7 @@ export function validateEmployeeRows(rows, existing, departments, schema) {
     const existingEmp = byBio.get(bio);
     if (existingEmp) problems.push(`Biometric ID already used by ${existingEmp.full_name}`);
     if (parsed.success) {
+      parsed.data.dtr_format = usesRemarkUndertime(parsed.data) ? 'no_undertime' : 'standard';
       const key = `${normalizeName(parsed.data.last_name).join(' ')}|${normalizeName(parsed.data.first_name).join(' ')}`;
       const dup = nameKeys.get(key);
       if (dup) warnings.push(`Same name as existing employee ${dup.full_name} (ID ${dup.biometric_id})`);

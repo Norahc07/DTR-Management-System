@@ -56,6 +56,20 @@ const DAY_LABELS = {
   holiday: { text: 'HOLIDAY' },
   leave: { text: 'ON LEAVE' },
 };
+/** Remarks in the Undertime column are printed only for these biometric IDs. */
+export const REMARK_UNDERTIME_IDS = ['2', '3', '12'];
+/** These biometric IDs are omitted from a half-month DTR and shown on Whole month. */
+export const HALF_PERIOD_HIDDEN_IDS = ['2', '12'];
+
+export function usesRemarkUndertime(employee) {
+  return REMARK_UNDERTIME_IDS.includes(String(employee?.biometric_id ?? '').trim());
+}
+
+/** IDs 2 and 12 are included only when the period is the whole month. */
+export function shownOnHalfPeriod(employee) {
+  return !HALF_PERIOD_HIDDEN_IDS.includes(String(employee?.biometric_id ?? '').trim());
+}
+
 /** Remarks chosen for days without times; printed in the merged Undertime cell. */
 export const DAY_REMARKS = [
   ['day_off', 'Day Off', 'DAYOFF'],

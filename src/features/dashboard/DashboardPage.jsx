@@ -14,7 +14,7 @@ import { listAllEmployees } from '@/features/employees/employeeService';
 import { loadDashboardCounts } from '@/features/lates/latesService';
 import { buildMonthlyDtr, resolveTemplate } from '@/features/dtr/buildDtr';
 import { DtrDocument, DtrSheet } from '@/features/dtr/DtrDocument';
-import { PERIODS, isPeriod, periodLabel, periodOfDay, periodRange, periodSummary } from '@/features/dtr/form48';
+import { PERIODS, isPeriod, periodLabel, periodOfDay, periodRange, periodSummary, shownOnHalfPeriod } from '@/features/dtr/form48';
 import { latestAttendanceDate, loadDtrData, logPrint, periodHasAttendance } from '@/features/dtr/dtrService';
 import { DtrEditDialog } from '@/features/dtr/DtrEditDialog';
 import { DtrBulkEditDialog } from '@/features/dtr/DtrBulkEditDialog';
@@ -56,8 +56,10 @@ export function DashboardPage() {
 
   const counts = useAsync(() => loadDashboardCounts(year), [year], { cacheKey: 'dashboard-counts' });
   const employees = useAsync(() => (selfOnly ? Promise.resolve([]) : listAllEmployees()), [selfOnly], { cacheKey: 'dashboard-staff' });
-  const activeIds = (employees.data ?? []).filter((e) => e.is_active).map((e) => e.id);
-  const selected = selfOnly ? (profile?.employee_id ? [profile.employee_id] : []) : picked.length ? picked : activeIds;
+  const roster = employees.data ?? [];
+  const eligible = roster.filter((e) => e.is_active && (period === 'month' || shownOnHalfPeriod(e)));
+  const eligibleIds = eligible.map((e) => e.id);
+  const selected = selfOnly ? (profile?.employee_id ? [profile.employee_id] : []) : picked.length ? picked.filter((id) => eligibleIds.includes(id)) : eligibleIds;
   const coverage = useAsync(
     () => (selected.length ? periodHasAttendance(selected, range.start, range.end) : Promise.resolve(false)),
     [selected.join(','), range.start, range.end],
@@ -78,7 +80,7 @@ export function DashboardPage() {
 
   const docs = useMemo(() => {
     if (!hasAttendance || !data.data) return [];
-    return data.data.employees.map((emp) => {
+    return data.data.employees.filter((emp) => period === 'month' || shownOnHalfPeriod(emp)).map((emp) => {
       const summaries = data.data.summaries.filter((s) => s.employee_id === emp.id);
       const remarks = (data.data.remarks ?? []).filter((r) => r.employee_id === emp.id);
       const dtr = buildMonthlyDtr({ year, month, summaries, template, remarks });
@@ -204,6 +206,9 @@ export function DashboardPage() {
           </Field>
         </div>
         )}
+        {period !== 'month' && (
+          <p className="mt-3 text-sm text-slate-600">Biometric IDs 2 and 12 are included only when the period is Whole month. ID 3 stays on this half.</p>
+        )}
         {!selfOnly && selected.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {(employees.data ?? []).filter((e) => selected.includes(e.id)).map((e) => (
@@ -239,6 +244,10 @@ export function DashboardPage() {
         <Spinner label="Loading DTR…" />
       ) : data.error ? (
         <ErrorState error={data.error} onRetry={data.reload} />
+      ) : !docs.length ? (
+        <EmptyState icon={FileText} title="No Daily Time Record for this period">
+          {period !== 'month' ? 'Biometric IDs 2 and 12 are included only when the period is Whole month.' : 'None of the selected staff have a DTR for this period.'}
+        </EmptyState>
       ) : (
         <div className="space-y-6">
           <div className="print-area space-y-6 overflow-x-auto pb-2">

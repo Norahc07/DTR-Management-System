@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { periodDays, periodLabel } from './form48';
+import { periodDays, periodLabel, shownOnHalfPeriod, usesRemarkUndertime } from './form48';
 import { nextSegment, segmentProblem } from './importSettings';
 
 describe('whole month period', () => {
@@ -7,6 +7,17 @@ describe('whole month period', () => {
     expect(periodDays(2026, 10, 'month')).toEqual({ from: 1, to: 31 });
     expect(periodDays(2026, 9, 'first')).toEqual({ from: 1, to: 15 });
     expect(periodLabel(2026, 10, 'month')).toBe('OCTOBER 1-31, 2026');
+  });
+
+  it('keeps the remarks undertime layout on IDs 2, 3 and 12 only, and hides 2 and 12 on a half', () => {
+    expect(usesRemarkUndertime({ biometric_id: '2', dtr_format: 'standard' })).toBe(true);
+    expect(usesRemarkUndertime({ biometric_id: '3' })).toBe(true);
+    expect(usesRemarkUndertime({ biometric_id: '12' })).toBe(true);
+    expect(usesRemarkUndertime({ biometric_id: '4', dtr_format: 'no_undertime' })).toBe(false);
+    expect(shownOnHalfPeriod({ biometric_id: '2' })).toBe(false);
+    expect(shownOnHalfPeriod({ biometric_id: '12' })).toBe(false);
+    expect(shownOnHalfPeriod({ biometric_id: '3' })).toBe(true);
+    expect(shownOnHalfPeriod({ biometric_id: '4' })).toBe(true);
   });
 });
 

@@ -5,6 +5,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Feedback';
+import { usesRemarkUndertime } from '@/features/dtr/form48';
 import { DTR_FORMATS, EMPLOYMENT_STATUSES, employeeSchema } from './employeeSchema';
 import { createEmployee, findNameDuplicates, updateEmployee } from './employeeService';
 
@@ -33,6 +34,8 @@ function EmployeeForm({ open, onClose, employee, departments, onSaved }) {
   const [error, setError] = useState(null);
   const [dupes, setDupes] = useState(null);
   const { register, handleSubmit, formState, getValues } = useForm({ resolver: zodResolver(employeeSchema), defaultValues: toForm(employee) });
+  const [biometricId, setBiometricId] = useState(employee?.biometric_id ?? '');
+  const biometricField = register('biometric_id');
 
   const save = async (values, confirmedDuplicate = false) => {
     setError(null);
@@ -44,7 +47,8 @@ function EmployeeForm({ open, onClose, employee, departments, onSaved }) {
           return;
         }
       }
-      const saved = employee ? await updateEmployee(employee.id, values) : await createEmployee(values);
+      const dtr_format = usesRemarkUndertime(values) ? 'no_undertime' : 'standard';
+      const saved = employee ? await updateEmployee(employee.id, { ...values, dtr_format }) : await createEmployee({ ...values, dtr_format });
       onSaved(saved);
       onClose();
     } catch (e) {
@@ -90,7 +94,18 @@ function EmployeeForm({ open, onClose, employee, departments, onSaved }) {
           </Alert>
         )}
         <Field label="Biometric ID" required error={err.biometric_id?.message} hint="The user ID enrolled on the biometric device. Stored as text so leading zeros are preserved.">
-          {(p) => <Input {...p} {...register('biometric_id')} autoComplete="off" placeholder="e.g. 12" />}
+          {(p) => (
+            <Input
+              {...p}
+              {...biometricField}
+              autoComplete="off"
+              placeholder="e.g. 12"
+              onChange={(e) => {
+                biometricField.onChange(e);
+                setBiometricId(e.target.value);
+              }}
+            />
+          )}
         </Field>
         <Field label="Employee number" error={err.employee_no?.message}>
           {(p) => <Input {...p} {...register('employee_no')} placeholder="e.g. EMP-0012" />}
@@ -139,9 +154,9 @@ function EmployeeForm({ open, onClose, employee, departments, onSaved }) {
         <Field label="Date hired" error={err.date_hired?.message}>
           {(p) => <Input {...p} type="date" {...register('date_hired')} />}
         </Field>
-        <Field label="DTR format">
+        <Field label="DTR format" hint="Remarks in the Undertime column are used only for biometric IDs 2, 3 and 12. Every other ID counts late and undertime, including a person who replaced one of those IDs.">
           {(p) => (
-            <Select {...p} {...register('dtr_format')}>
+            <Select {...p} value={usesRemarkUndertime({ biometric_id: biometricId }) ? 'no_undertime' : 'standard'} disabled>
               {DTR_FORMATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </Select>
           )}

@@ -1,4 +1,4 @@
-import { DAY_REMARKS, HALF_DAY_REMARK, periodDays } from './form48';
+import { DAY_REMARKS, HALF_DAY_REMARK, periodDays, usesRemarkUndertime } from './form48';
 
 const REMARK_LABEL = Object.fromEntries([...DAY_REMARKS, HALF_DAY_REMARK].map(([v, l]) => [v, l]));
 
@@ -19,8 +19,8 @@ export function dtrExportRows(docs, { year, month, period }) {
           'Morning OUT': slots[1] || '',
           'Afternoon IN': slots[2] || '',
           'Afternoon OUT': slots[3] || '',
-          'Late (min)': emp.dtr_format === 'no_undertime' ? '' : r.late || 0,
-          'Undertime (min)': emp.dtr_format === 'no_undertime' ? '' : r.undertime || 0,
+          'Late (min)': usesRemarkUndertime(emp) ? '' : r.late || 0,
+          'Undertime (min)': usesRemarkUndertime(emp) ? '' : r.undertime || 0,
           Remark: r.remark ? REMARK_LABEL[r.remark] ?? r.remark : '',
           Status: r.statusLabel,
           Remarks: r.remarks || '',
